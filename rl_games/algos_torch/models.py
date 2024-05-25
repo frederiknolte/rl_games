@@ -28,16 +28,19 @@ class BaseModel():
         normalize_value = config.get('normalize_value', False)
         normalize_input = config.get('normalize_input', False)
         value_size = config.get('value_size', 1)
+        rpo_alpha = config.get('rpo_alpha', None)
         return self.Network(self.network_builder.build(self.model_class, **config), obs_shape=obs_shape,
-            normalize_value=normalize_value, normalize_input=normalize_input, value_size=value_size)
+            normalize_value=normalize_value, normalize_input=normalize_input, value_size=value_size,
+                            rpo_alpha=rpo_alpha)
 
 class BaseModelNetwork(nn.Module):
-    def __init__(self, obs_shape, normalize_value, normalize_input, value_size):
+    def __init__(self, obs_shape, normalize_value, normalize_input, value_size, rpo_alpha):
         nn.Module.__init__(self)
         self.obs_shape = obs_shape
         self.normalize_value = normalize_value
         self.normalize_input = normalize_input
         self.value_size = value_size
+        self.rpo_alpha = rpo_alpha
 
         if normalize_value:
             self.value_mean_std = RunningMeanStd((self.value_size,)) #   GeneralizedMovingStats((self.value_size,)) #   
@@ -144,7 +147,8 @@ class ModelA2CMultiDiscrete(BaseModel):
             if is_train:
                 if action_masks is None:
                     categorical = [Categorical(logits=logit) for logit in logits]
-                else:   
+                else:
+                    action_masks = np.split(action_masks,len(logits), axis=1)
                     categorical = [CategoricalMasked(logits=logit, masks=mask) for logit, mask in zip(logits, action_masks)]
                 prev_actions = torch.split(prev_actions, 1, dim=-1)
                 prev_neglogp = [-c.log_prob(a.squeeze()) for c,a in zip(categorical, prev_actions)]
@@ -162,7 +166,8 @@ class ModelA2CMultiDiscrete(BaseModel):
             else:
                 if action_masks is None:
                     categorical = [Categorical(logits=logit) for logit in logits]
-                else:   
+                else:
+                    action_masks = np.split(action_masks, len(logits), axis=1)
                     categorical = [CategoricalMasked(logits=logit, masks=mask) for logit, mask in zip(logits, action_masks)]                
                 
                 selected_action = [c.sample().long() for c in categorical]
@@ -262,6 +267,12 @@ class ModelA2CContinuousLogStd(BaseModel):
             mu, logstd, value, states = self.a2c_network(input_dict)
             sigma = torch.exp(logstd)
             distr = torch.distributions.Normal(mu, sigma, validate_args=False)
+
+            if self.rpo_alpha is not None:
+                z = torch.zeros_like(mu).uniform_(-abs(self.rpo_alpha), abs(self.rpo_alpha))
+                mu = mu + z
+                distr = torch.distributions.Normal(mu, sigma)
+
             if is_train:
                 entropy = distr.entropy().sum(dim=-1)
                 prev_neglogp = self.neglogp(prev_actions, mu, sigma, logstd)

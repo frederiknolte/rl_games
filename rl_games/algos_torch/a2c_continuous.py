@@ -10,8 +10,20 @@ import torch
 
 
 class A2CAgent(a2c_common.ContinuousA2CBase):
+    """Continuous PPO Agent
 
+    The A2CAgent class inerits from the continuous asymmetric actor-critic class and makes modifications for PPO.
+
+    """
     def __init__(self, base_name, params):
+        """Initialise the algorithm with passed params
+
+        Args:
+            base_name (:obj:`str`): Name passed on to the observer and used for checkpoints etc.
+            params (:obj `dict`): Algorithm parameters
+
+        """
+
         a2c_common.ContinuousA2CBase.__init__(self, base_name, params)
         obs_shape = self.obs_shape
         build_config = {
@@ -21,6 +33,7 @@ class A2CAgent(a2c_common.ContinuousA2CBase):
             'value_size': self.env_info.get('value_size',1),
             'normalize_value' : self.normalize_value,
             'normalize_input': self.normalize_input,
+            'rpo_alpha': params['model']['rpo_alpha']
         }
         
         self.model = self.network.build(build_config)
@@ -75,6 +88,14 @@ class A2CAgent(a2c_common.ContinuousA2CBase):
         assert False
 
     def calc_gradients(self, input_dict):
+        """Compute gradients needed to step the networks of the algorithm.
+
+        Core algo logic is defined here
+
+        Args:
+            input_dict (:obj:`dict`): Algo inputs as a dict.
+
+        """
         value_preds_batch = input_dict['old_values']
         old_action_log_probs_batch = input_dict['old_logp_actions']
         advantage = input_dict['advantages']
