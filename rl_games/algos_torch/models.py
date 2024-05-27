@@ -29,18 +29,20 @@ class BaseModel():
         normalize_input = config.get('normalize_input', False)
         value_size = config.get('value_size', 1)
         rpo_alpha = config.get('rpo_alpha', None)
+        rpo_alpha_decay = config.get('rpo_alpha_decay', None)
         return self.Network(self.network_builder.build(self.model_class, **config), obs_shape=obs_shape,
             normalize_value=normalize_value, normalize_input=normalize_input, value_size=value_size,
-                            rpo_alpha=rpo_alpha)
+                            rpo_alpha=rpo_alpha, rpo_alpha_decay=rpo_alpha_decay)
 
 class BaseModelNetwork(nn.Module):
-    def __init__(self, obs_shape, normalize_value, normalize_input, value_size, rpo_alpha):
+    def __init__(self, obs_shape, normalize_value, normalize_input, value_size, rpo_alpha, rpo_alpha_decay):
         nn.Module.__init__(self)
         self.obs_shape = obs_shape
         self.normalize_value = normalize_value
         self.normalize_input = normalize_input
         self.value_size = value_size
         self.rpo_alpha = rpo_alpha
+        self.rpo_alpha_decay = rpo_alpha_decay
 
         if normalize_value:
             self.value_mean_std = RunningMeanStd((self.value_size,)) #   GeneralizedMovingStats((self.value_size,)) #   
@@ -57,6 +59,13 @@ class BaseModelNetwork(nn.Module):
     def denorm_value(self, value):
         with torch.no_grad():
             return self.value_mean_std(value, denorm=True) if self.normalize_value else value
+
+    def update_step(self):
+        pass
+
+    def get_log(self):
+        return {}
+
 
 class ModelA2C(BaseModel):
     def __init__(self, network):
@@ -302,6 +311,13 @@ class ModelA2CContinuousLogStd(BaseModel):
             return 0.5 * (((x - mean) / std)**2).sum(dim=-1) \
                 + 0.5 * np.log(2.0 * np.pi) * x.size()[-1] \
                 + logstd.sum(dim=-1)
+
+        def update_step(self):
+            if self.rpo_alpha is not None and self.rpo_alpha_decay is not None:
+                self.rpo_alpha = max(self.rpo_alpha * self.rpo_alpha_decay, 0.01)
+
+        def get_log(self):
+            return {'rpo_alpha': self.rpo_alpha}
 
 
 class ModelCentralValue(BaseModel):

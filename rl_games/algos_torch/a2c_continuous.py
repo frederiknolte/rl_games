@@ -33,7 +33,8 @@ class A2CAgent(a2c_common.ContinuousA2CBase):
             'value_size': self.env_info.get('value_size',1),
             'normalize_value' : self.normalize_value,
             'normalize_input': self.normalize_input,
-            'rpo_alpha': params['model']['rpo_alpha']
+            'rpo_alpha': params['model'].get('rpo_alpha', None),
+            'rpo_alpha_decay': params['model'].get('rpo_alpha_decay', None),
         }
         
         self.model = self.network.build(build_config)
