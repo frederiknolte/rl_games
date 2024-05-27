@@ -314,7 +314,7 @@ class ModelA2CContinuousLogStd(BaseModel):
 
         def update_step(self):
             if self.rpo_alpha is not None and self.rpo_alpha_decay is not None:
-                self.rpo_alpha = max(self.rpo_alpha * self.rpo_alpha_decay, 0.01)
+                self.rpo_alpha = max(self.rpo_alpha - self.rpo_alpha_decay, 0.01)
 
         def get_log(self):
             return {'rpo_alpha': self.rpo_alpha}
