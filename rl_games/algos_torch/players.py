@@ -57,6 +57,7 @@ class PpoPlayerContinuous(BasePlayer):
         mu = res_dict['mus']
         action = res_dict['actions']
         self.states = res_dict['rnn_states']
+        self.values = res_dict['values']
         if is_deterministic:
             current_action = mu
         else:
