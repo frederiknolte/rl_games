@@ -491,10 +491,11 @@ class SACAgent(BaseAlgorithm):
             self.current_rewards = self.current_rewards * not_dones
             self.current_lengths = self.current_lengths * not_dones
 
-            if isinstance(next_obs, dict):    
+            if isinstance(next_obs, dict):
                 next_obs_processed = next_obs['obs']
-
-            self.obs = next_obs.clone()
+                self.obs = next_obs_processed.clone()
+            else:
+                self.obs = next_obs.clone()
 
             rewards = self.rewards_shaper(rewards)
 
