@@ -321,6 +321,8 @@ class ModelA2CContinuousLogStd(BaseModel):
                 self.rpo_alpha = max(self.rpo_alpha - self.rpo_alpha_decay, self.rpo_alpha_min)
 
         def get_log(self):
+            if self.rpo_alpha is None:
+                return {}
             return {'rpo_alpha': self.rpo_alpha}
 
 
